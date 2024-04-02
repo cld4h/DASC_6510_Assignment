@@ -9,7 +9,7 @@ output:
       in_header: preamble.tex
 ---
 
-Source code of this page: [https://github.com/cld4h/DASC_6510_Assignment/AST2](https://github.com/cld4h/DASC_6510_Assignment/AST2)
+Source code of this document: [https://github.com/cld4h/DASC_6510_Assignment/AST2](https://github.com/cld4h/DASC_6510_Assignment/AST2)
 
 # Problem 1: Exercise 8.3 (page 242)
 
