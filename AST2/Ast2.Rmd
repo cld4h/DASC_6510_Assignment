@@ -1,0 +1,610 @@
+---
+title: "DASC6510 Assignment2"
+author: "Hao Xu T00732492"
+output:
+  html_document:
+    css: style.css
+  pdf_document:
+    includes: 
+      in_header: preamble.tex
+---
+
+Source code of this page: [https://github.com/cld4h/DASC_6510_Assignment/AST2](https://github.com/cld4h/DASC_6510_Assignment/AST2)
+
+# Problem 1: Exercise 8.3 (page 242)
+
+\prob{
+Hierarchical modeling: The files school1.dat through school8.dat give weekly hours spent on homework for students sampled from eight different schools. Obtain posterior distributions for the true means for the eight different schools using a hierarchical normal model with the following prior parameters:
+(Refer to Page 132)
+
+\[
+\mu_0 = 7, \gamma_0^2 = 5, \quad \tau_0^2=10, \eta_0=2, \quad \sigma_0^2 = 15, \nu_0=2.
+\] 
+}
+
+## Part a
+
+\prob{
+a) Run a Gibbs sampling algorithm to approximate the posterior distribution of $\{\boldsymbol{\theta}, \sigma^{2}, \mu, \tau^{2}\}$. Assess the convergence of the Markov chain, and find the effective sample size for $\{\sigma^2, \mu, \tau^2\}$. Run the chain long enough so that the effective sample sizes are all above 1,000.
+}
+\begin{figure}
+    \centering
+\begin{tikzpicture}
+\matrix[matrix of math nodes, column sep=20pt, row sep=20pt] (mat)
+{
+    &&\left(\mu, \tau^2\right) && \\ 
+    \theta_1 & \theta_2 & \ldots & \theta_{m-1} & \theta_m \\
+    \mathbf{Y}_1 & \mathbf{Y}_2 & \ldots & \mathbf{Y}_{m-1} &  \mathbf{Y}_m \\
+    && \sigma^2 && \\
+};
+
+\foreach \column in {1, 2, 4, 5}
+{
+    \draw[->,>=latex] (mat-1-3) -- (mat-2-\column);
+    \draw[->,>=latex] (mat-2-\column) -- (mat-3-\column);
+    \draw[<-,>=latex] (mat-3-\column) -- (mat-4-3);
+}
+\end{tikzpicture}
+\caption{Graphical representation of the hierarchical model.}
+\label{fig:8.3diagram}
+\end{figure}
+Because here only $\boldsymbol{\theta}$ is a vector ($\boldsymbol{\theta} = (\theta_1,\ldots,\theta_m)^T$, $m = 8$ is the total number of schools), $\sigma^2$ is the same across all 8 schools, so we are assuming common variance. The fixed but unknown parameters in this model are $\mu, \tau^2$ and $\sigma^2$. We use standard semiconjugate normal and inverse-gamma prior distributions for these parameters:
+
+\begin{align*}
+	\frac{1}{\sigma^2} &\sim \text{gamma}(\frac{\nu_0}{2}, \frac{\nu_0\sigma_0^2}{2})\\
+	\frac{1}{\tau^2} &\sim \text{gamma}(\frac{\eta_0}{2}, \frac{\eta_0\tau_0^2}{2})\\
+	\mu &\sim \text{normal}(\mu_0, \gamma_0^2)\\
+\end{align*}
+
+Posterior approximation proceeds by iterative sampling of each unknown quantity from its full conditional distribution. Given a current state of the unknowns $\{\theta_1^{(s)},\ldots,\theta_m^{(s)}, \mu^{(s)}, {\tau^2}^{(s)},{\sigma^2}^{(s)}\}$, a new state is generated as follows:
+
+1. sample $\mu^{(s+1)}\sim p(\mu|\theta_1^{(s)},\ldots,\theta_m^{(s)}, {\tau^2}^{(s)})$
+2. sample ${\tau^2}^{(s+1)} \sim p(\tau^2|\theta_1^{(s)},\ldots,\theta_m^{(s)}, \mu^{(s+1)})$
+3. sample ${\sigma^2}^{(s+1)} \sim p(\sigma^2|\theta_1^{(s)},\ldots,\theta_m^{(s)}, \mathbf{Y}_1,\ldots,\mathbf{Y}_m)$
+4. for each $j \in \{1,\ldots,m\}$, sample $\theta_j^{(s+1)}\sim p(\theta_j|\mu^{(s+1)}, {\tau^2}^{(s+1)},{\sigma^2}^{(s+1)}, \mathbf{Y}_j)$
+\begin{align*}
+	\{ \mu|\theta_1, \ldots, \theta_m, \tau^2\} &\sim \text{normal}\left( \frac{m \overline{\theta}/\tau^2+\mu_0/\gamma_0^2}{m/\tau^2+1/\gamma_0^2}, [m/\tau^2+1/\gamma_0^2]^{-1} \right) \\
+	\{ \frac{1}{\tau^2}|\theta_1, \ldots, \theta_m, \mu\} &\sim \text{gamma}\left( \frac{\eta_0+m}{2}, \frac{\eta_0\tau_0^2+\sum(\theta_j-\mu)^2}{2} \right) \\
+	\{\theta_j|Y_{1,j},\ldots,Y_{n_j, j}, \sigma^2\} &\sim \text{normal}\left(\frac{n_j \overline{Y_{\cdot,j}} / \sigma^2 + 1 / \tau^2}{n_j / \sigma^2 + 1/\tau^2},[n_j / \sigma^2 + 1/\tau^2]^{-1}\right)\\
+	\{ \frac{1}{\sigma^2}|\theta_1, \ldots, \theta_m, Y_1,\ldots,Y_n\} &\sim \text{gamma}\left( \frac{1}{2}\left[\nu_0+\sum_{j=1}^{m} n_j\right], \frac{1}{2}\left[\nu_0\sigma_0^2+\sum_{j=1}^{m} \sum_{i=1}^{n_j} (Y_{i,j}-\theta_j)^2\right] \right) \\
+\end{align*}
+
+```{r}
+### Code modified from Ch.8.4.1
+### weakly informative priors
+mu0 <- 7; g20 <- 5
+t20 <- 10; eta0 <- 2
+s20 <- 15; nu0 <- 2
+###
+
+Y <- NULL
+### load the data
+# iterate from 1 to 8
+for (i in 1:8) {
+# store schooli.dat into Y
+scores <- scan(paste0("school",i,".dat")) 
+      for(j in 1:length(scores)){
+		Y <- rbind(Y, c(i,scores[j]))
+      }
+}
+
+## starting values
+m<-length(unique(Y[,1])) # the number of schools, m=8
+n<-sv<-ybar<-rep(NA,m) 
+for(j in 1:m) 
+{ 
+  # mean score for each school
+  ybar[j]<-mean(Y[Y[,1]==j,2]) 
+  # score variance for each school
+  sv[j]<-var(Y[Y[,1]==j,2])
+  # number of students in each school
+  n[j]<-sum(Y[,1]==j) 
+}
+# initial value?
+theta<-ybar; sigma2<-mean(sv)
+mu<-mean(theta); tau2<-var(theta)
+###
+
+## setup MCMC
+set.seed(1)
+S<-5000
+THETA<-matrix( nrow=S,ncol=m)
+MST<-matrix( nrow=S,ncol=3)
+
+## MCMC algorithm
+for(s in 1:S) 
+{
+
+  # sample new values of the thetas
+  for(j in 1:m) 
+  {
+    # Variance of full conditional distribution of
+    # theta given y_{1,j}..y_{n_j,j} and \sigma^2
+    vtheta<-1/(n[j]/sigma2+1/tau2)
+    # Mean of full conditional distribution of
+    # theta given y_{1,j}..y_{n_j,j} and \sigma^2
+    etheta<-vtheta*(ybar[j]*n[j]/sigma2+mu/tau2)
+    theta[j]<-rnorm(1,etheta,sqrt(vtheta))
+   }
+
+  # sample new value of sigma2 from inverse-gamma
+  nun<-nu0+sum(n)
+  ss<-nu0*s20
+  for(j in 1:m){ss<-ss+sum((Y[Y[,1]==j,2]-theta[j])^2)}
+  sigma2<-1/rgamma(1,nun/2,ss/2)
+
+  #sample a new value of mu from normal
+  vmu<- 1/(m/tau2+1/g20)
+  emu<- vmu*(m*mean(theta)/tau2 + mu0/g20)
+  mu<-rnorm(1,emu,sqrt(vmu)) 
+
+  # sample a new value of tau2 from gamma
+  etam<-eta0+m
+  ss<- eta0*t20 + sum( (theta-mu)^2 )
+  tau2<-1/rgamma(1,etam/2,ss/2)
+
+  #store results
+  THETA[s,]<-theta
+  MST[s,]<-c(mu,sigma2,tau2)
+} 
+```
+
+Assess the convergence of the Markov chain
+```{r}
+#### A plot for evaluating lack of convergence
+stationarity.plot<-function(x,...){
+
+S<-length(x)
+scan<-1:S
+ng<-min( round(S/100),10)
+group<-S*ceiling( ng*scan/S) /ng
+
+boxplot(x~group,...)               
+}
+stationarity.plot(MST[,1],xlab="iteration",ylab=expression(mu))
+stationarity.plot(MST[,2],xlab="iteration",ylab=expression(sigma^2))
+stationarity.plot(MST[,3],xlab="iteration",ylab=expression(tau^2))
+```
+
+\prob{
+Find the effective sample size for $\{\mu, \sigma^2, \tau^2\}$.
+}
+
+```{r}
+library(coda)
+# The effective size for mu is: 
+effectiveSize(MST[, 1])
+# The effective size for sigma^2 is: 
+effectiveSize(MST[, 2])
+# The effective size for tau^2 is:
+effectiveSize(MST[, 3])
+```
+
+## Part b
+
+\prob{
+b) Compute posterior means and 95\% confidence regions for $\{\sigma^2, \mu, \tau^2\}$. Also, compare the posterior densities to the prior densities, and discuss what was learned from the data.
+}
+
+```{r}
+B <- 201 # Burn-in first 200 samples
+library(xtable)
+
+Conf.Regions <- t(apply(MST[B:S,], MARGIN = 2, FUN = quantile, probs = c(0.025, 0.5, 0.975)))
+Post.Mean <- t(t(apply(MST[B:S,], MARGIN = 2, FUN = mean)))
+cbind(Post.Mean,Conf.Regions)
+# xtable( cbind(Post.Mean,Conf.Regions))
+```
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{rrrrr}
+  \hline
+ & Posterior Mean& 2.5\% & 50\% & 97.5\% \\ 
+  \hline
+$\mu$ & 7.55 & 5.92 & 7.57 & 9.13 \\ 
+$\sigma^2$ & 14.48 & 11.73 & 14.34 & 17.79 \\ 
+$\tau^2$ & 5.61 & 1.90 & 4.63 & 14.97 \\ 
+   \hline
+\end{tabular}
+\end{table}
+
+Comparing posterior densities to the prior densities:
+
+```{r}
+plot(density(MST[B:S,1]), main = "Posterior density(black solid) vs Prior density(gray dashed)", 
+     xlab = expression(mu), ylab = expression(paste("p(", mu, ")", sep="")))
+x_mu <- seq(min(MST[B:S,1]), max(MST[B:S,1]), length.out = S)
+lines(x_mu,dnorm(x_mu,mean=mu0,sd=sqrt(g20)),type="l",col="gray",lwd=2,lty=2)
+
+dinvgamma<-function(x,a,b) {
+ld<- a*log(b) -lgamma(a) -(a+1)*log(x)  -b/x
+exp(ld)
+}
+
+plot(density(MST[B:S,2]), main = "Posterior density(black solid) vs Prior density(gray dashed)", 
+     xlab = expression(sigma^2), ylab = expression(paste("p(", sigma^2, ")", sep="")))
+x_sigma <- seq(min(MST[B:S,2]), max(MST[B:S,2]), length.out = S)
+lines(x_sigma,dinvgamma(x_sigma,a=nu0/2,b=(nu0*s20)/2),type="l",col="gray",lwd=2,lty=2)
+
+plot(density(MST[B:S,3]), main = "Posterior density(black solid) vs Prior density(gray dashed)", 
+     xlab = expression(tau^2), ylab = expression(paste("p(", tau^2, ")", sep="")))
+x_tau <- seq(min(MST[B:S,3]), max(MST[B:S,3]), length.out = S)
+lines(x_tau,dinvgamma(x_sigma,a=eta0/2,b=(eta0*t20)/2),type="l",col="gray",lwd=2,lty=2)
+```
+
+The posterior distributions are more concentrated, having less variance compared to prior.
+
+## Part c
+
+\prob{
+c) Plot the posterior density of $R = \frac{\tau^2}{\sigma^2+\tau^2}$ and compare it to a plot of the prior density of R. Describe the evidence for between-school variation.
+}
+
+```{r}
+t20_sample = (1 / rgamma(1000000, eta0 / 2, eta0 * t20 / 2))
+s20_sample = (1 / rgamma(1000000, nu0 / 2, nu0 * s20 / 2))
+
+R0_sample =  (t20_sample) / (s20_sample+ t20_sample)
+
+R_sample = MST[B:S, 3] / (MST[B:S, 2] + MST[B:S, 3])
+
+plot(density(R_sample), main = "Posterior density(black solid) vs Prior density(gray dashed)", 
+     xlab = expression(R), ylab = expression(paste("p(R)")))
+lines(density(R0_sample), col="Gray", lwd=2, lty=2)
+```
+
+If $\sigma^2 \gg \tau^2$, $R\to 0$, the within-school variance is the dominating factor for the variance in data; If $\tau^2 \gg \sigma^2$, $R\to 1$,  the between-school variance is the dominating factor for the variance in data. $R$ indicate the proportion of between-school variance in the total variance of data. We have a weak prior on which part is dominating before inference, but after calculating the posterior distribution of $R$, we know that around 20\% of the variance in data comes from the between-school variance.
+
+
+## Part d
+
+\prob{
+d) Obtain the posterior probability that $\theta_7$ is smaller than $\theta_6$, as well as the posterior probability that $\theta_7$ is the smallest of all the $\theta$’s.
+}
+
+```{r}
+# The posterior probability that theta_7 is smaller than theta_6
+theta7_lt_6 <- THETA[B:S, 7] < THETA[B:S, 6]
+mean(theta7_lt_6)
+
+# The posterior probability that theta_7 is smaller than all
+theta7_lt_all <- THETA[B:S, 7] <= THETA[B:S, -7]
+theta7_lt_all <- apply(theta7_lt_all, MARGIN=1, FUN=all)
+mean(theta7_lt_all)
+```
+
+\begin{align*}
+\text{Posterior }P(\theta_7 < \theta_6) &= 50.85\%\\
+\text{Posterior }P(\theta_7 \leq \theta_\cdot) &= 30.58\%
+\end{align*}
+
+## Part e
+
+\prob{
+e) Plot the sample averages $\overline{y}_1,\ldots, \overline{y}_8$ against the posterior expectations of $\theta_1,\ldots,\theta_8$, and describe the relationship. Also compute the sample mean of all observations and compare it to the posterior mean of $\mu$.
+}
+
+```{r}
+thetabar <- apply(THETA[B:S,], MARGIN=2, FUN=mean)
+plot(thetabar,ybar, xlab=expression(theta[i]), 
+ylab=expression(bar(Y[i])))
+abline(lm(ybar~thetabar), lty=2)
+# The sample mean of all observations
+mean(Y[,2])
+# Posterior mean of mu
+mean(MST[B:S,1])
+```
+
+There is a linear relationship between $\theta_i$ and  $\overline{y_i}$. The sample mean of all observations is 7.69, The posterior mean of $\mu$ is 7.55.
+
+
+# Problem 2: Exercise 9.3
+
+\prob{
+Crime: The file crime.dat contains crime rates and data on 15 explanatory variables for 47 U.S. states, in which both the crime rates and the explanatory variables have been centered and scaled to have variance 1. A description of the variables can be obtained by typing library(MASS);?UScrime in R.
+}
+
+## Part a
+\prob{
+a) Fit a regression model $\mathbf{y} = \mathbf{X}\boldsymbol{\beta}+\boldsymbol{\epsilon}$ using the $g$-prior with $g = n, \nu_0 = 2$ and $\sigma_0^2 = 1$. Obtain marginal posterior means and 95\% confidence intervals for $\boldsymbol{\beta}$, and compare to the least squares estimates. Describe the relationships between crime and the explanatory variables. Which variables seem strongly predictive of crime rates?
+}
+
+From textbook page 158, under $g$-prior distributionn, $p(\sigma^2|\mathbf{y,X})$ and $p(\boldsymbol{\beta}|\mathbf{y,X},\sigma^2)$ are inverse-gamma and multivariate normal distributions respectively. A sample value of $\sigma^2, \boldsymbol{\beta}$ from the joint posterior distributions $p(\sigma^2, \boldsymbol{\beta}|\mathbf{y,X})$ can be made with Monte Carlo approximation as follows:
+
+\begin{enumerate}
+\item sample $\frac{1}{\sigma^2} \sim \text{gamma}\left( [\nu_0+n]/2, [\nu_0\sigma_0^2+\text{SSR}_g]/2 \right) $ ; where $\text{SSR}_{g} = \mathbf{y}^T(\mathbf{I}-\frac{g}{g+1}\mathbf{X}(\mathbf{X}^T\mathbf{X})^{-1}\mathbf{X}^T)\mathbf{y}$
+\item sample $\boldsymbol{\beta} \sim \text{multivariate normal}\left( \frac{g}{g+1}\hat{\boldsymbol{\beta}}_\text{ols}, \frac{g}{g+1} \sigma^2[\mathbf{X}^T\mathbf{X}]^{-1} \right) $
+\end{enumerate}
+
+
+```{r}
+crime <- read.table("crime.dat", header=TRUE)
+# crime.df <- as.data.frame(read.table("crime.dat", header=TRUE))
+
+y <- crime$y
+X <- as.matrix(subset(crime, select = -c(y)))
+
+n <- dim(X)[1] # rows of data
+p <- dim(X)[2] # number of parameters
+
+g = n
+nu0 = 2
+s20 = 1
+
+S = 1000
+
+Hg <- (g / (g + 1)) * X %*% solve(t(X) %*% X) %*% t(X)
+SSRg <- t(y) %*% (diag(1, nrow = n) - Hg) %*% y
+
+s2 <- 1 / rgamma(S, (nu0 + n) / 2, (nu0 * s20 + SSRg) / 2)
+Vb <- g * solve(t(X) %*% X) / (g + 1)
+Eb <- Vb %*% t(X) %*% y
+
+E <- matrix(rnorm(S * p, 0, sqrt(s2)), S, p)
+beta <- t(t(E %*% chol(Vb)) + c(Eb))
+
+```
+
+```{r}
+CIbeta <- apply(beta, MARGIN=2, quantile, prob=c(0.025,0.5,0.975))
+Significant <- apply(CIbeta, MARGIN=2, 
+	function(q){return(ifelse(q[1]<0 & q[3]>0, FALSE, TRUE))})
+Meanbeta <- apply(beta, MARGIN=2, mean)
+LSbeta <- lm(y~X)$coeff[-1]
+CIbeta <- rbind(CIbeta, Significant, Meanbeta, LSbeta)
+# xtable(CIbeta)
+plot(1:p,type="n", ylab=expression(beta[i]), xlab="index: i", 
+     xlim=c(0,p+1), ylim=c(-3,3), xaxt="n")
+for (i in 1:p){
+color=ifelse(CIbeta[4,i],"black","gray")
+segments(i,CIbeta[1,i],i,CIbeta[3,i], lwd=2,  col=color)
+#points(i, CIbeta[1, i], pch=4, col=color)
+points(i, CIbeta[2, i], col=color)
+#points(i, CIbeta[3, i], pch=4, col=color)
+}
+axis(side = 1, at = seq(1,p,by=1), labels = colnames(CIbeta))
+abline(h=0, lty=2, col="GRAY")
+```
+
+\begin{table}[ht]
+\centering
+\scalebox{0.8}{
+\begin{tabular}{rrrrrrrrrrrrrrrr}
+  \hline
+ & M & So & Ed & Po1 & Po2 & LF & M.F & Pop & NW & U1 & U2 & GDP & Ineq 
+& Prob & Time \\ 
+  \hline
+2.5\% & 0.05 & -0.34 & 0.21 & -0.02 & -2.20 & -0.31 & -0.16 & -0.29 & -0
+.18 & -0.59 & 0.03 & -0.22 & 0.31 & -0.53 & -0.29 \\ 
+  50\% & 0.28 & -0.01 & 0.54 & 1.42 & -0.77 & -0.07 & 0.13 & -0.06 & 0.1
+1 & -0.26 & 0.35 & 0.22 & 0.70 & -0.27 & -0.06 \\ 
+  97.5\% & 0.51 & 0.35 & 0.84 & 2.76 & 0.72 & 0.22 & 0.41 & 0.18 & 0.40 
+& 0.09 & 0.65 & 0.68 & 1.12 & -0.03 & 0.20 \\ 
+  Significant & 1.00 & 0.00 & 1.00 & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 & 
+0.00 & 0.00 & 1.00 & 0.00 & 1.00 & 1.00 & 0.00 \\ 
+  Meanbeta & 0.28 & 0.00 & 0.53 & 1.42 & -0.74 & -0.06 & 0.13 & -0.07 & 
+0.11 & -0.26 & 0.35 & 0.23 & 0.70 & -0.28 & -0.06 \\ 
+  LSbeta & 0.29 & -0.00 & 0.54 & 1.47 & -0.78 & -0.07 & 0.13 & -0.07 & 0
+.11 & -0.27 & 0.37 & 0.24 & 0.73 & -0.29 & -0.06 \\ 
+   \hline
+\end{tabular}
+}
+\end{table}
+
+In the table above, 2.5\% and 97.5\% rows gives the lower and upper bound of 95\% credible intervals, Significant = 1 indicates variables are significant (does not include 0 in the credible intervals). The significant variables selected are: M, ED, U2, Ineq, Prob. "Meanbeta" row gives the marginal posterior means. The last row "LSbeta" gives the classic Least Square Regression result.
+
+\prob{
+b) Lets see how well regression models can predict crime rates based on the $\mathbf{X}$-variables. Randomly divide the crime roughly in half, into a training set $\{\mathbf{y}_{\text{tr}}, \mathbf{X}_{\text{tr}}\}$ and a test set $\{\mathbf{y}_{\text{te}}, \mathbf{X}_{\text{te}}\}$
+}
+
+```{r}
+set.seed(1) 
+train_i = sample.int(length(y), size = round(length(y) / 2), replace = FALSE)
+ytr = y[train_i]
+Xtr = X[train_i, ]
+yte = y[-train_i]
+Xte = X[-train_i, ]
+```
+
+\prob{
+i. Using only the training set, obtain least squares regression coefficients $\hat{\boldsymbol{\beta}_{\text{ols}}}$. 
+Obtain predicted values for the test data by computing $\hat{\mathbf{y}_{\text{ols}}}$. 
+Plot $\hat{\mathbf{y}_{\text{ols}}}$ versus $\mathbf{y}_{\text{te}}$ 
+and compute the prediction error 
+$\frac{1}{n_{\text{te}}}\sum \left( y_{i\text{,te}} - \hat{y}_{i\text{,ols}} \right)^2$
+}
+
+```{r}
+beta_ols = solve(t(Xtr) %*% Xtr) %*% t(Xtr) %*% ytr
+beta_ols
+
+y_ols = Xte %*% beta_ols
+
+ols_df = data.frame(
+  observed = yte,
+  predicted = y_ols
+)
+
+library(ggplot2)
+ggplot(ols_df, aes(x = observed, y = predicted)) +
+  geom_point() +
+  geom_smooth(method = 'lm')
+```
+
+
+\prob{
+ii. Now obtain the posterior mean $\hat{\boldsymbol{\beta}}_{\text{Bayes}}=E[\beta \mid \mathbf{y}_{\text{tr}}]$ using the g-prior described above and the training data only. Obtain predictions for the test set $\hat{\mathbf{y}}_{\text{Bayes}} = \mathbf{X}_{\text{test}}\hat{\boldsymbol{\beta}}_{\text{Bayes}}$. Plot versus the test data, compute the prediction error, and compare to the OLS prediction error. Explain the results.
+}
+
+\prob{
+c) Repeat the procedures in b) many times with different randomly generated test and training sets. Compute the average prediction error for both the OLS and Bayesian methods.
+}
+
+# Problem 3: Exercise 10.5
+
+\prob{
+Logistic regression variable selection: Consider a logistic regression model for predicting diabetes as a function of $x_1$ = number of pregnancies, $x_2$ = blood pressure, $x_3$ = body mass index, $x_4$ = diabetes pedigree and $x_5$ = age. Using the data in azdiabetes.dat, center and scale each of the x-variables by subtracting the sample average and dividing by the sample standard deviation for each variable. Consider a logistic regression model of the form Pr$(Y_i = 1|\mathbf{x}_i, \boldsymbol{\beta},  \mathbf{z}) = e^{\theta_i}/(1 + e^{\theta_i})$ where
+
+
+\[
+\theta_i = \beta_0+ 
+\beta_1\gamma_1x_{i,1} +
+\beta_2\gamma_2x_{i,2} +
+\beta_3\gamma_3x_{i,3} +
+\beta_4\gamma_4x_{i,4} +
+\beta_5\gamma_5x_{i,5}
+.\] 
+
+In this model, each $\gamma_j$ is either 0 or 1, indicating whether or not variable $j$ is a predictor of diabetes. For example, if it were the case that $\gamma = (1, 1, 0, 0, 0)$, then $\theta_i = \beta_0 + \beta_1x_{i,1}+\beta_2x_{i,2}$. Obtain posterior distributions for $\beta$ and $\gamma$, using independent prior distributions for the parameters, such that $\gamma_j \sim \text{binary}(\frac{1}{2})$, $\beta_0 \sim \text{normal}(0,16)$ and $\beta_j \sim \text{normal}(0,4)$ for each $j > 0$.
+}
+
+## Part a
+
+\prob{
+a) Implement a Metropolis-Hastings algorithm for approximating the posterior distribution of $\beta$ and $\gamma$. Examine the sequences $\beta_j^{(s)}$ and $\beta_j^{(s)} \times \gamma_j^{(s)}$ for each j and discuss the mixing of the chain.
+}
+
+## Part b
+
+\prob{
+b) Approximate the posterior probability of the top five most frequently occurring values of $\gamma$. How good do you think the MCMC estimates of these posterior probabilities are?
+}
+
+## Part c
+
+\prob{
+c) For each $j$, plot posterior densities and obtain posterior means for $\beta_j\gamma_j$. Also obtain Pr$(\gamma_j = 1|\mathbf{x}, \mathbf{y})$.
+}
+
+# Problem 4: Exercise 11.4
+
+\prob{
+Hierarchical logistic regression: The Washington Assessment of Student Learning (WASL) is a standardized test given to students in the state of Washington. Letting $j$ index the counties within the state of Washington and $i$ index schools within counties, the file mathstandard.dat includes data on the following variables:
+
+$y_{i,j}$ = the indicator that more than half the 10th graders in school $i, j$ passed the WASL math exam;
+
+$x_{i,j}$ = the percentage of teachers in school $i, j$ who have a masters degree.
+
+In this exercise we will construct an algorithm to approximate the posterior distribution of the parameters in a generalized linear mixed-effects model for these data. The model is a mixed effects version of logistic regression:
+
+\begin{align*}
+y_{i,j} &\sim \text{binomial}(e^{\gamma_{i,j}/[1+e^{\gamma_{i,j}}]})\text{, where }\gamma_{i,j} = \beta_{0,j}+\beta_{1,j}x_{i,j}\\
+\boldsymbol{\beta}_1,\ldots,\boldsymbol{\beta}_J &\sim \text{ i.i.d. multivariate normal } (\boldsymbol{\theta}, \Sigma)\text{, where } \boldsymbol{\beta}_j = (\beta_{0,j}, \beta_{1,j})
+.\end{align*}
+}
+
+## Part a
+
+\prob{
+a) The unknown parameters in the model include population-level parameters $\{\boldsymbol{\theta}, \Sigma\}$ and the group-level parameters $\{\boldsymbol{\beta}_1, \ldots , \boldsymbol{\beta}_m\}$. Draw a diagram that describes the relationships between these parameters, the data $\{y_{i,j}, x_{i,j}, i=1,\ldots,n_j, j=1,\ldots,m\}$, and prior distributions.
+}
+
+\begin{figure}
+    \centering
+\begin{tikzpicture}
+\matrix[matrix of math nodes, column sep=20pt, row sep=20pt] (mat)
+{
+    &&\left(\boldsymbol{\theta}, \Sigma\right) && \\ 
+    \boldsymbol{\beta}_1 & \boldsymbol{\beta}_2 & \ldots & \boldsymbol{\beta}_{J-1} & \boldsymbol{\beta}_J \\
+    \mathbf{Y}_1 & \mathbf{Y}_2 & \ldots & \mathbf{Y}_{J-1} &  \mathbf{Y}_J \\
+%    \mathbf{\sigma}_1^2 & \mathbf{\sigma}_2^2 & \ldots & \mathbf{\sigma}_{k-1}^2 &  \mathbf{\sigma}_k^2 \\
+%    && \boldsymbol{\theta}_2 && \\
+};
+
+\foreach \column in {1, 2, 4, 5}
+{
+    \draw[->,>=latex] (mat-1-3) -- (mat-2-\column);
+    \draw[->,>=latex] (mat-2-\column) -- (mat-3-\column);
+%    \draw[<-,>=latex] (mat-3-\column) -- (mat-4-\column);
+%    \draw[<-,>=latex] (mat-3-\column) -- (mat-4-3);
+}
+\end{tikzpicture}
+\caption{Graphical representation of the hierarchical model.}
+    \label{fig:11.4diagram}
+\end{figure}
+
+```{r eval=FALSE}
+# Note: Data are preprocessed to replace space in the first column with underscore
+mathstandard = as.data.frame(read.table("mathstandard.dat", header=TRUE))
+Ncounty <- table(mathstandard$county)
+valid <- as.numeric(Ncounty > 3)
+counties_list <- unique(mathstandard$county)
+
+# To see warnings
+# options(warn=2, error=recover)
+# resume default
+# options(warn=0, error=NULL)
+
+# for (county in counties_list)
+# {
+# glm(mathstandard$metstandard ~ mathstandard$percentms, data = mathstandard[which(mathstandard$county==county),], family=binomial)
+# 
+# ggplot(mathstandard[which(mathstandard$county==county),], aes(x = percentms, y = metstandard, color = county)) +
+#   geom_point() +
+#   geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE, aes(group = county), linetype = "solid") +
+#   labs(title = "Logistic Regression for Met Standard by County",
+#        x = "Percent MS Degree",
+#        y = "Met Standard") +
+#   theme_minimal()
+# print(county)
+# ggsave(paste("output/", county, ".pdf", sep=""))
+# }
+# J = 39
+library(dplyr)
+county_regression <- mathstandard %>%
+  group_by(county) %>%
+  do(model = glm(metstandard ~ percentms, data = ., family = binomial))
+
+BETA0hat <- NULL
+BETA1hat <- NULL
+for(i in 1:39){
+	BETA0hat <- c(BETA0hat, county_regression[[2]][[i]]$coefficients)
+}
+
+glm(mathstandard$metstandard ~ mathstandard$percentms, data = mathstandard[which(mathstandard$county=="Columbia"),], family=binomial)
+
+pdf("output/Columbia.pdf")
+ggplot(mathstandard[which(mathstandard$county=="Columbia"),], aes(x = percentms, y = metstandard, color = county)) +
+  geom_point() +
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE, aes(group = county), linetype = "solid") +
+  labs(title = "Logistic Regression for Met Standard by County",
+       x = "Percent MS Degree",
+       y = "Met Standard") +
+  theme_minimal()
+dev.off()
+
+# For entire state
+ggplot(mathstandard, aes(x = percentms, y = metstandard)) +
+  geom_point() +
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE, linetype = "dotted") +
+  labs(title = "Logistic Regression for Met Standard by County",
+       x = "Percent MS Degree",
+       y = "Met Standard") +
+  theme_minimal()
+
+library(broom)
+# Tidy up the regression results
+tidy_results <- tidy(county_regression, model)
+
+# Print tidy results
+print(tidy_results)
+
+library(ggplot2)
+ggplot(mathstandard, aes(x = percentms, y = metstandard, color = county)) +
+  geom_point() +
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE, aes(group = county), linetype = "dotted") +
+  labs(title = "Logistic Regression for Met Standard by County",
+       x = "Percent Met Standard",
+       y = "Met Standard") +
+  theme_minimal()
+```
+
+b) Before we do a Bayesian analysis, we will get some ad hoc estimates of these parameters via maximum likelihood: Fit a separate logistic regression model for each group, possibly using the **glm** command in R via `beta.j <- glm(y.j ~ X.j, family=binomial)\$coef`. Explain any problems you have with obtaining estimates for each county. Plot $\text{exp}\{\hat{\beta}_{0,j} + \hat{\beta}_{1,j}x\}/(1 + \text{exp}\{\hat{\beta}_{0,j} + \hat{\beta}_{1,j}x\})$ as a function of $x$ for each county and describe what you see. Using maximum likelihood estimates only from those counties with 10 or more schools, obtain ad hoc estimates $\hat{\boldsymbol{\theta}}$ and $\hat{\Sigma}$ of $\boldsymbol{\theta}$ and $\Sigma$. Note that these estimates may not be representative of patterns from schools with small sample sizes.
+
+c) Formulate a unit information prior distribution for $\boldsymbol{ \theta }$ and $\Sigma$ based on the observed data. Specifically, let $\boldsymbol{ \theta } \sim \text{multivariate normal}(\hat{\boldsymbol{\theta}}, \hat{\Sigma})$ and let $\Sigma^{-1} \sim \text{Wishart}(4, \hat{\Sigma}^{-1})$. Use a Metropolis-Hastings algorithm to approximate the joint posterior distribution of all parameters.
+
+d) Make plots of the samples of $\boldsymbol{\theta}$ and $\Sigma$ (5 parameters) versus MCMC iteration number. Make sure you run the chain long enough so that your MCMC samples are likely to be a reasonable approximation to the posterior distribution.
+e) Obtain posterior expectations of $\boldsymbol{\beta}_j$ for each group $j$, plot $E[\beta_{0,j}|\mathbf{y}] + E[\beta_{1,j}|\mathbf{y}]x$ as a function of $x$ for each county, compare to the plot in b) and describe why you see any differences between the two sets of regression lines.
+
+f) From your posterior samples, plot marginal posterior and prior densities of $\boldsymbol{\theta}$ and the elements of $\Sigma$. Include your ad hoc estimates from b) in the plots. Discuss the evidence that the slopes or intercepts vary across groups.

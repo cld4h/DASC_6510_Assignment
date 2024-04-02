@@ -1,0 +1,24 @@
+\usepackage{color}
+\usepackage{framed}
+\setlength{\fboxsep}{.8em}
+
+\usepackage{tcolorbox}
+
+\usepackage{tikz}
+\usepackage{graphicx}
+\usetikzlibrary{matrix} % note this is in the preamble
+\newtcolorbox{blackbox}{
+  colback=black,
+  colframe=orange,
+  coltext=white,
+  boxsep=5pt,
+  arc=4pt}
+
+\newcommand{\prob}[1]{
+%\begin{center}
+%	\noindent\doublebox{\parbox{.9\textwidth}{\large \bf #1}}
+%\end{center}
+\begin{tcolorbox}[colback=green!5!white,colframe=green!75!black]
+#1
+\end{tcolorbox}
+}
