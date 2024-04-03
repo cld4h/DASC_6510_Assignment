@@ -6,3 +6,5 @@ Merge the two parts of the document: `Ast3.pdf` (derivations and reports) and `A
 ```sh
 pdfunite Ast3.pdf Ast3-code.pdf Ast3-combined.pdf
 ```
+
+The full version is then `Ast3-combined.pdf`

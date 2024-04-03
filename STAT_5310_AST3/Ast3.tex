@@ -159,11 +159,11 @@ when $\frac{n\sigma^2}{2}-\sum_{i=1}^{n}(x_i-\mu_0)^2 < 0 \Leftrightarrow \sigma
 (b) Use the 0.95-credible interval for $\mu$ to test the hypothesis $H_0: \mu = 65$
 }
 
-Claim: The posterior distribution of $\mu|y_1,\ldots,y_n,\sigma^2$ follows a Normal distribution.
+Claim: The posterior distribution of $\{\mu|y_1,\ldots,y_n,\sigma^2\}$ follows a Normal distribution.
 
 Proof:
 
-The sampling distribution of $y_1,\ldots,y_n | \mu, \sigma^2$ is: 
+The sampling distribution of $\{y_1,\ldots,y_n | \mu, \sigma^2\}$ is: 
 
 \begin{align*}
 p(y_1,\ldots,y_n|\mu,\sigma^2) 
@@ -171,14 +171,14 @@ p(y_1,\ldots,y_n|\mu,\sigma^2)
 &=(2\pi\sigma^2)^{-\frac{n}{2}}\exp\left( -\frac{1}{2\sigma^2}\sum_{i=1}^{n} \left(y_i-\mu \right) ^2 \right) 
 .\end{align*}
 
-The prior distribution of $\mu|\sigma^2,\mu_0,\tau_0^2$ is:
+The prior distribution of $\{\mu|\sigma^2,\mu_0,\tau_0^2\}$ is:
 
 \begin{align*}
 p(\mu|\sigma^2,\mu_0,\tau_0^2)
 &=\frac{1}{\sqrt{2\pi\sigma^2}} \exp\left( -\frac{\left( \mu-\mu_0 \right)^2 }{2\tau_0^2} \right)
 .\end{align*}
 
-The posterior distribution of $\mu|y_1,\ldots,y_n,\sigma^2,\mu_0,\tau_0^2$ is:
+The posterior distribution of $\{\mu|y_1,\ldots,y_n,\sigma^2,\mu_0,\tau_0^2\}$ is:
 
 \begin{align*}
 p(\mu|y_1,\ldots,y_n, \sigma^2, \mu_0, \tau_0^2) 
@@ -199,13 +199,13 @@ Get the normalizing coefficient $C$ for this normal distribution:
 									      C&=\frac{1}{\sqrt{2\pi \frac{\sigma^2\tau_0^2}{n\tau_0^2+\sigma^2}} }
 \end{align*}
 
-$\therefore \mu|y_1,\ldots,y_n, \sigma^2, \mu_0, \tau_0^2 \sim N(\frac{ \tau_0^2 \sum_{i=1}^{n} y_i + \sigma^2\mu_0 }{n\tau_0^2+\sigma^2}, \frac{\sigma^2\tau_0^2}{n\tau_0^2+\sigma^2})$
+$\therefore \{\mu|y_1,\ldots,y_n, \sigma^2, \mu_0, \tau_0^2\} \sim N(\frac{ \tau_0^2 \sum_{i=1}^{n} y_i + \sigma^2\mu_0 }{n\tau_0^2+\sigma^2}, \frac{\sigma^2\tau_0^2}{n\tau_0^2+\sigma^2})$
 
-The posterior mode of $\mu|y_1,\ldots,y_n, \sigma^2, \mu_0, \tau_0^2$ is $\frac{ \tau_0^2 \sum_{i=1}^{n} y_i + \sigma^2\mu_0 }{n\tau_0^2+\sigma^2} = \frac{1\times632+9\times 65}{10\times 1+9} = \frac{1217}{19} = 64.05263$
+The posterior mode of $\{\mu|y_1,\ldots,y_n, \sigma^2, \mu_0, \tau_0^2\}$ is $\frac{ \tau_0^2 \sum_{i=1}^{n} y_i + \sigma^2\mu_0 }{n\tau_0^2+\sigma^2} = \frac{1\times632+9\times 65}{10\times 1+9} = \frac{1217}{19} = 64.05263$
 
-The posterior variance of $\mu|y_1,\ldots,y_n, \sigma^2, \mu_0, \tau_0^2$ is $\frac{\sigma^2\tau_0^2}{n\tau_0^2+\sigma^2} = \frac{9}{19} = 0.4736842$ 
+The posterior variance of $\{\mu|y_1,\ldots,y_n, \sigma^2, \mu_0, \tau_0^2\}$ is $\frac{\sigma^2\tau_0^2}{n\tau_0^2+\sigma^2} = \frac{9}{19} = 0.4736842$ 
 
-The 0.95-credible interval for $\mu|y_1,\ldots,y_n, \sigma^2, \mu_0, \tau_0^2$ is:
+The 0.95-credible interval for $\{\mu|y_1,\ldots,y_n, \sigma^2, \mu_0, \tau_0^2\}$ is:
 \begin{align*}
 &[64.05263+\text{qnorm(0.025)}\sqrt{0.4736842}, \quad 64.05263+\text{qnorm(0.975)}\sqrt{0.4736842} ] \\
 =& [62.70369, 65.40157]
@@ -248,18 +248,18 @@ $\theta_A \sim Gamma(\alpha_A = 120, \beta_A=10), \theta_B \sim Gamma(\alpha_B =
 (c)Should knowledge about population $A$ tell us anything about population $B$? Discuss whether or not it makes sense to have $\pi(\theta_A, \theta_B) = \pi(\theta_A)\times \pi(\theta_A)$.
 }
 
-Claim: The posterior distribution of $\theta|y_1,\ldots,y_n,\alpha, \beta \sim \text{Gamma}\left( \alpha, \beta \right) $ 
+Claim: The posterior distribution of $\{\theta|y_1,\ldots,y_n,\alpha, \beta\} \sim \text{Gamma}\left( \alpha, \beta \right) $ 
 
 Proof:
 
-Prior distribution of $\theta|y_1,\ldots,y_n,\alpha, \beta$ is: 
+Prior distribution of $\{\theta|\alpha, \beta\}$ is: 
 
 \begin{align*}
 p(\theta|\alpha, \beta)
 &= \frac{\beta^\alpha}{\Gamma(\alpha)}\cdot \theta^{\alpha-1}e^{-\beta\theta}
 \end{align*}
 
-The sampling distribution of $y_1,\ldots,y_n|\theta$ is:
+The sampling distribution of $\{y_1,\ldots,y_n|\theta\}$ is:
 
 \begin{align*}
 p(y_1,\ldots,y_n|\theta)
@@ -267,7 +267,7 @@ p(y_1,\ldots,y_n|\theta)
 &=c(y_1,\ldots,y_n)\cdot \theta^{\sum_{i=1}^{n} y_i}e^{-n\theta}\\
 \end{align*}
 
-The posterior distribution of $\theta|y_1,\ldots,y_n, \alpha, \beta$ is:
+The posterior distribution of $\{\theta|y_1,\ldots,y_n, \alpha, \beta\}$ is:
 
 \begin{align*}
 p(\theta|y_1,\ldots,y_n, \alpha, \beta)
@@ -276,7 +276,7 @@ p(\theta|y_1,\ldots,y_n, \alpha, \beta)
 &\propto \theta^{\alpha+\sum_{i=1}^{n} y_i -1}e^{-(\beta+n)\theta}
 \end{align*}
 
-$\therefore \theta|y_1,\ldots,y_n, \alpha, \beta \sim \text{Gamma}(\alpha+\sum_{i=1}^{n} y_i, \beta+n)$
+$\therefore \{\theta|y_1,\ldots,y_n, \alpha, \beta\} \sim \text{Gamma}(\alpha+\sum_{i=1}^{n} y_i, \beta+n)$
 
 \begin{itemize}
 \item The mean of a Gamma distribution $f(\theta) = \frac{\beta^{\alpha}}{\Gamma(\alpha)}\theta^{\alpha-1}e^{-\beta \theta}$ is $\frac{\alpha}{\beta}$
