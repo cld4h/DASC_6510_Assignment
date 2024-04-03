@@ -524,87 +524,118 @@ a) The unknown parameters in the model include population-level parameters $\{\b
     \label{fig:11.4diagram}
 \end{figure}
 
-```{r eval=FALSE}
+
+## Part b
+
+\prob{
+b) Before we do a Bayesian analysis, we will get some ad hoc estimates of these parameters via maximum likelihood: Fit a separate logistic regression model for each group, possibly using the \FunctionTok{glm} command in R via \NormalTok{beta.j <- glm(y.j \~ X.j, family=binomial)\$coef}. Explain any problems you have with obtaining estimates for each county. Plot $\text{exp}\{\hat{\beta}_{0,j} + \hat{\beta}_{1,j}x\}/(1 + \text{exp}\{\hat{\beta}_{0,j} + \hat{\beta}_{1,j}x\})$ as a function of $x$ for each county and describe what you see. Using maximum likelihood estimates only from those counties with 10 or more schools, obtain ad hoc estimates $\hat{\boldsymbol{\theta}}$ and $\hat{\Sigma}$ of $\boldsymbol{\theta}$ and $\Sigma$. Note that these estimates may not be representative of patterns from schools with small sample sizes.
+}
+
+```{r fig.height = 2.5, fig.width = 2.5, warning= FALSE}
 # Note: Data are preprocessed to replace space in the first column with underscore
 mathstandard = as.data.frame(read.table("mathstandard.dat", header=TRUE))
-Ncounty <- table(mathstandard$county)
-valid <- as.numeric(Ncounty > 3)
-counties_list <- unique(mathstandard$county)
 
 # To see warnings
 # options(warn=2, error=recover)
 # resume default
 # options(warn=0, error=NULL)
 
-# for (county in counties_list)
-# {
-# glm(mathstandard$metstandard ~ mathstandard$percentms, data = mathstandard[which(mathstandard$county==county),], family=binomial)
-# 
-# ggplot(mathstandard[which(mathstandard$county==county),], aes(x = percentms, y = metstandard, color = county)) +
-#   geom_point() +
-#   geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE, aes(group = county), linetype = "solid") +
-#   labs(title = "Logistic Regression for Met Standard by County",
-#        x = "Percent MS Degree",
-#        y = "Met Standard") +
-#   theme_minimal()
-# print(county)
-# ggsave(paste("output/", county, ".pdf", sep=""))
-# }
-# J = 39
-library(dplyr)
-county_regression <- mathstandard %>%
-  group_by(county) %>%
-  do(model = glm(metstandard ~ percentms, data = ., family = binomial))
+# Create a county list to plot all counties
+counties_list <- unique(mathstandard$county)
 
-BETA0hat <- NULL
-BETA1hat <- NULL
-for(i in 1:39){
-	BETA0hat <- c(BETA0hat, county_regression[[2]][[i]]$coefficients)
+# plot for each county not using ggplot
+for (county in counties_list)
+{
+county_data = mathstandard[which(mathstandard$county==county),]
+model <- glm(county_data$metstandard ~ county_data$percentms, data = county_data, family=binomial)
+
+# Create a sequence of values for the predictor variable
+x_seq <- seq(min(county_data$percentms), max(county_data$percentms), length.out = 100)
+
+# Predict probabilities for each value in the sequence
+pred_prob <- 1/(1+exp(-model$coef[2]*x_seq-model$coef[1]))
+
+# Plot predicted probabilities against the predictor variable
+plot(x_seq, pred_prob, type = "l", ylim = c(0, 1), xlab = "", ylab = "")
+points(county_data$percentms, county_data$metstandard)
+title(county)
 }
-
-glm(mathstandard$metstandard ~ mathstandard$percentms, data = mathstandard[which(mathstandard$county=="Columbia"),], family=binomial)
-
-pdf("output/Columbia.pdf")
-ggplot(mathstandard[which(mathstandard$county=="Columbia"),], aes(x = percentms, y = metstandard, color = county)) +
-  geom_point() +
-  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE, aes(group = county), linetype = "solid") +
-  labs(title = "Logistic Regression for Met Standard by County",
-       x = "Percent MS Degree",
-       y = "Met Standard") +
-  theme_minimal()
-dev.off()
-
-# For entire state
-ggplot(mathstandard, aes(x = percentms, y = metstandard)) +
-  geom_point() +
-  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE, linetype = "dotted") +
-  labs(title = "Logistic Regression for Met Standard by County",
-       x = "Percent MS Degree",
-       y = "Met Standard") +
-  theme_minimal()
-
-library(broom)
-# Tidy up the regression results
-tidy_results <- tidy(county_regression, model)
-
-# Print tidy results
-print(tidy_results)
-
-library(ggplot2)
-ggplot(mathstandard, aes(x = percentms, y = metstandard, color = county)) +
-  geom_point() +
-  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE, aes(group = county), linetype = "dotted") +
-  labs(title = "Logistic Regression for Met Standard by County",
-       x = "Percent Met Standard",
-       y = "Met Standard") +
-  theme_minimal()
 ```
 
-b) Before we do a Bayesian analysis, we will get some ad hoc estimates of these parameters via maximum likelihood: Fit a separate logistic regression model for each group, possibly using the **glm** command in R via `beta.j <- glm(y.j ~ X.j, family=binomial)\$coef`. Explain any problems you have with obtaining estimates for each county. Plot $\text{exp}\{\hat{\beta}_{0,j} + \hat{\beta}_{1,j}x\}/(1 + \text{exp}\{\hat{\beta}_{0,j} + \hat{\beta}_{1,j}x\})$ as a function of $x$ for each county and describe what you see. Using maximum likelihood estimates only from those counties with 10 or more schools, obtain ad hoc estimates $\hat{\boldsymbol{\theta}}$ and $\hat{\Sigma}$ of $\boldsymbol{\theta}$ and $\Sigma$. Note that these estimates may not be representative of patterns from schools with small sample sizes.
+We have 13 Warning messages when doing glm for each county:
 
+1. glm.fit: fitted probabilities numerically 0 or 1 occurred
+2. glm.fit: fitted probabilities numerically 0 or 1 occurred
+3. glm.fit: algorithm did not converge
+4. glm.fit: fitted probabilities numerically 0 or 1 occurred
+5. glm.fit: algorithm did not converge
+6. glm.fit: fitted probabilities numerically 0 or 1 occurred
+7. glm.fit: fitted probabilities numerically 0 or 1 occurred
+8. glm.fit: fitted probabilities numerically 0 or 1 occurred
+9. glm.fit: fitted probabilities numerically 0 or 1 occurred
+10. glm.fit: fitted probabilities numerically 0 or 1 occurred
+11. glm.fit: fitted probabilities numerically 0 or 1 occurred
+12. glm.fit: algorithm did not converge
+13. glm.fit: fitted probabilities numerically 0 or 1 occurred
+
+These warnings comes from 13 counties that has data points $\leq 3$
+
+```{r}
+model <- glm(mathstandard$metstandard ~ mathstandard$percentms, data = mathstandard, family=binomial)
+
+# Create a sequence of values for the predictor variable
+x_seq <- seq(min(mathstandard$percentms), max(mathstandard$percentms), length.out = 100)
+
+# Predict probabilities for each value in the sequence
+pred_prob <- 1/(1+exp(-model$coef[2]*x_seq-model$coef[1]))
+
+# Plot predicted probabilities against the predictor variable
+plot(x_seq, pred_prob, type = "l", ylim = c(0, 1), xlab = "MS Percent", ylab = "Met Standard")
+points(mathstandard$percentms, mathstandard$metstandard)
+title("The Logistic Regression on the entire Washington State")
+```
+
+```{r}
+Ncounty <- table(mathstandard$county) # Table for number of sample data in each county
+valid_counties <- names(which(Ncounty >= 10))
+
+# Select counties with 10 or more schools
+
+BETA <- NULL
+for (county in valid_counties){
+county_data = mathstandard[which(mathstandard$county==county),]
+model <- glm(county_data$metstandard ~ county_data$percentms, 
+	     data = county_data, family=binomial)
+BETA<-rbind(BETA, model$coeff)
+}
+
+theta0<-apply(BETA, 2 , mean)
+S0<-cov(BETA)
+
+theta0
+S0
+```
+
+
+\prob{
 c) Formulate a unit information prior distribution for $\boldsymbol{ \theta }$ and $\Sigma$ based on the observed data. Specifically, let $\boldsymbol{ \theta } \sim \text{multivariate normal}(\hat{\boldsymbol{\theta}}, \hat{\Sigma})$ and let $\Sigma^{-1} \sim \text{Wishart}(4, \hat{\Sigma}^{-1})$. Use a Metropolis-Hastings algorithm to approximate the joint posterior distribution of all parameters.
+}
 
+## Part d
+
+\prob{
 d) Make plots of the samples of $\boldsymbol{\theta}$ and $\Sigma$ (5 parameters) versus MCMC iteration number. Make sure you run the chain long enough so that your MCMC samples are likely to be a reasonable approximation to the posterior distribution.
-e) Obtain posterior expectations of $\boldsymbol{\beta}_j$ for each group $j$, plot $E[\beta_{0,j}|\mathbf{y}] + E[\beta_{1,j}|\mathbf{y}]x$ as a function of $x$ for each county, compare to the plot in b) and describe why you see any differences between the two sets of regression lines.
+}
 
+
+## Part e
+
+\prob{
+e) Obtain posterior expectations of $\boldsymbol{\beta}_j$ for each group $j$, plot $E[\beta_{0,j}|\mathbf{y}] + E[\beta_{1,j}|\mathbf{y}]x$ as a function of $x$ for each county, compare to the plot in b) and describe why you see any differences between the two sets of regression lines.
+}
+
+## Part f
+
+\prob{
 f) From your posterior samples, plot marginal posterior and prior densities of $\boldsymbol{\theta}$ and the elements of $\Sigma$. Include your ad hoc estimates from b) in the plots. Discuss the evidence that the slopes or intercepts vary across groups.
+}
