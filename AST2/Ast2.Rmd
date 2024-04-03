@@ -531,7 +531,7 @@ a) The unknown parameters in the model include population-level parameters $\{\b
 b) Before we do a Bayesian analysis, we will get some ad hoc estimates of these parameters via maximum likelihood: Fit a separate logistic regression model for each group, possibly using the \FunctionTok{glm} command in R via \NormalTok{beta.j <- glm(y.j \~ X.j, family=binomial)\$coef}. Explain any problems you have with obtaining estimates for each county. Plot $\text{exp}\{\hat{\beta}_{0,j} + \hat{\beta}_{1,j}x\}/(1 + \text{exp}\{\hat{\beta}_{0,j} + \hat{\beta}_{1,j}x\})$ as a function of $x$ for each county and describe what you see. Using maximum likelihood estimates only from those counties with 10 or more schools, obtain ad hoc estimates $\hat{\boldsymbol{\theta}}$ and $\hat{\Sigma}$ of $\boldsymbol{\theta}$ and $\Sigma$. Note that these estimates may not be representative of patterns from schools with small sample sizes.
 }
 
-```{r fig.height = 2.5, fig.width = 2.5, warning= FALSE}
+```{r warning= FALSE}
 # Note: Data are preprocessed to replace space in the first column with underscore
 mathstandard = as.data.frame(read.table("mathstandard.dat", header=TRUE))
 
@@ -540,6 +540,7 @@ mathstandard = as.data.frame(read.table("mathstandard.dat", header=TRUE))
 # resume default
 # options(warn=0, error=NULL)
 
+par(mfrow = c(3, 3), mar = c(1, 1, 3, 1))
 # Create a county list to plot all counties
 counties_list <- unique(mathstandard$county)
 
