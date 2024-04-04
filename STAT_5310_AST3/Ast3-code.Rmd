@@ -165,9 +165,18 @@ effectiveSize(mh_output_a)
 cat("\nEffective size of proposal b:\n")
 effectiveSize(mh_output_b)
 
-# Calculate E(X) and Var(X) for proposal (a)
-mean_a <- mean(mh_output_a)
-var_a <- var(mh_output_a)
+# Redo the MH algorithm
+# do a thining 
+# then calculate E(X) and Var(X) for proposal (a)
+
+set.seed(123)
+mh_output_a_new <- metropolis_hastings(iterations*10, proposal_sd_a)
+mh_output_a_thinned <- mh_output_a_new[seq(10, length(mh_output_a_new), by = 10)]
+cat("\nEffective size of thinned proposal a:\n")
+effectiveSize(mh_output_a_thinned)
+
+mean_a <- mean(mh_output_a_thinned)
+var_a <- var(mh_output_a_thinned)
 cat("Proposal (a):\n")
 cat("E(X):", mean_a, "\n")
 cat("Var(X):", var_a, "\n")
