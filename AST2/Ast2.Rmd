@@ -150,7 +150,7 @@ for(s in 1:S)
 ```
 
 Assess the convergence of the Markov chain
-```{r}
+```{r fig.height=3}
 #### A plot for evaluating lack of convergence
 stationarity.plot<-function(x,...){
 
@@ -211,7 +211,7 @@ $\tau^2$ & 5.61 & 1.90 & 4.63 & 14.97 \\
 
 Comparing posterior densities to the prior densities:
 
-```{r}
+```{r fig.height=4}
 plot(density(MST[B:S,1]), main = "Posterior density(black solid) vs Prior density(gray dashed)", 
      xlab = expression(mu), ylab = expression(paste("p(", mu, ")", sep="")))
 x_mu <- seq(min(MST[B:S,1]), max(MST[B:S,1]), length.out = S)
@@ -230,7 +230,7 @@ lines(x_sigma,dinvgamma(x_sigma,a=nu0/2,b=(nu0*s20)/2),type="l",col="gray",lwd=2
 plot(density(MST[B:S,3]), main = "Posterior density(black solid) vs Prior density(gray dashed)", 
      xlab = expression(tau^2), ylab = expression(paste("p(", tau^2, ")", sep="")))
 x_tau <- seq(min(MST[B:S,3]), max(MST[B:S,3]), length.out = S)
-lines(x_tau,dinvgamma(x_sigma,a=eta0/2,b=(eta0*t20)/2),type="l",col="gray",lwd=2,lty=2)
+lines(x_tau,dinvgamma(x_tau,a=eta0/2,b=(eta0*t20)/2),type="l",col="gray",lwd=2,lty=2)
 ```
 
 The posterior distributions are more concentrated, having less variance compared to prior.
@@ -241,7 +241,7 @@ The posterior distributions are more concentrated, having less variance compared
 c) Plot the posterior density of $R = \frac{\tau^2}{\sigma^2+\tau^2}$ and compare it to a plot of the prior density of R. Describe the evidence for between-school variation.
 }
 
-```{r}
+```{r fig.height=4}
 t20_sample = (1 / rgamma(1000000, eta0 / 2, eta0 * t20 / 2))
 s20_sample = (1 / rgamma(1000000, nu0 / 2, nu0 * s20 / 2))
 
@@ -285,7 +285,7 @@ mean(theta7_lt_all)
 e) Plot the sample averages $\overline{y}_1,\ldots, \overline{y}_8$ against the posterior expectations of $\theta_1,\ldots,\theta_8$, and describe the relationship. Also compute the sample mean of all observations and compare it to the posterior mean of $\mu$.
 }
 
-```{r}
+```{r fig.width=3, fig.asp=1}
 thetabar <- apply(THETA[B:S,], MARGIN=2, FUN=mean)
 plot(thetabar,ybar, xlab=expression(theta[i]), 
 ylab=expression(bar(Y[i])))
@@ -322,8 +322,7 @@ From textbook page 158, under $g$-prior distributionn, $p(\sigma^2|\mathbf{y,X})
 crime <- read.table("crime.dat", header=TRUE)
 # crime.df <- as.data.frame(read.table("crime.dat", header=TRUE))
 
-y <- crime$y
-X <- as.matrix(subset(crime, select = -c(y)))
+beta_bayes <- function(y, X){
 
 n <- dim(X)[1] # rows of data
 p <- dim(X)[2] # number of parameters
@@ -343,6 +342,12 @@ Eb <- Vb %*% t(X) %*% y
 
 E <- matrix(rnorm(S * p, 0, sqrt(s2)), S, p)
 beta <- t(t(E %*% chol(Vb)) + c(Eb))
+return(beta)
+}
+
+y <- crime$y
+X <- as.matrix(subset(crime, select = -c(y)))
+beta <- beta_bayes(y,X)
 
 ```
 
@@ -354,6 +359,7 @@ Meanbeta <- apply(beta, MARGIN=2, mean)
 LSbeta <- lm(y~X)$coeff[-1]
 CIbeta <- rbind(CIbeta, Significant, Meanbeta, LSbeta)
 # xtable(CIbeta)
+p <- dim(X)[2] # number of parameters
 plot(1:p,type="n", ylab=expression(beta[i]), xlab="index: i", 
      xlim=c(0,p+1), ylim=c(-3,3), xaxt="n")
 for (i in 1:p){
@@ -394,6 +400,8 @@ abline(h=0, lty=2, col="GRAY")
 
 In the table above, 2.5\% and 97.5\% rows gives the lower and upper bound of 95\% credible intervals, Significant = 1 indicates variables are significant (does not include 0 in the credible intervals). The significant variables selected are: M, ED, U2, Ineq, Prob. "Meanbeta" row gives the marginal posterior means. The last row "LSbeta" gives the classic Least Square Regression result.
 
+## Part b
+
 \prob{
 b) Lets see how well regression models can predict crime rates based on the $\mathbf{X}$-variables. Randomly divide the crime roughly in half, into a training set $\{\mathbf{y}_{\text{tr}}, \mathbf{X}_{\text{tr}}\}$ and a test set $\{\mathbf{y}_{\text{te}}, \mathbf{X}_{\text{te}}\}$
 }
@@ -408,9 +416,9 @@ Xte = X[-train_i, ]
 ```
 
 \prob{
-i. Using only the training set, obtain least squares regression coefficients $\hat{\boldsymbol{\beta}_{\text{ols}}}$. 
-Obtain predicted values for the test data by computing $\hat{\mathbf{y}_{\text{ols}}}$. 
-Plot $\hat{\mathbf{y}_{\text{ols}}}$ versus $\mathbf{y}_{\text{te}}$ 
+i. Using only the training set, obtain least squares regression coefficients $\hat{\boldsymbol{\beta}}_{\text{ols}}$. 
+Obtain predicted values for the test data by computing $\hat{\mathbf{y}}_{\text{ols}}$. 
+Plot $\hat{\mathbf{y}}_{\text{ols}}$ versus $\mathbf{y}_{\text{te}}$ 
 and compute the prediction error 
 $\frac{1}{n_{\text{te}}}\sum \left( y_{i\text{,te}} - \hat{y}_{i\text{,ols}} \right)^2$
 }
@@ -418,7 +426,8 @@ $\frac{1}{n_{\text{te}}}\sum \left( y_{i\text{,te}} - \hat{y}_{i\text{,ols}} \ri
 The dashed grey line is the reference line for $y_{te}=y_{ols}$
 ```{r fig.asp=1, fig.width=4}
 Beta_ols = solve(t(Xtr) %*% Xtr) %*% t(Xtr) %*% ytr
-Beta_ols
+#Output Beta_ols
+#xtable(t(Beta_ols))
 
 y_ols = Xte %*% Beta_ols
 xy_range <- range(c(-1.5, 3))
@@ -431,6 +440,21 @@ lines(ref_range,ref_range,
 #abline(a=0,b=1,lty=2,lwd=2,col="GRAY")
 ```
 
+$\hat{\boldsymbol{\beta}}_{\text{ols}}$ is:
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{rrrrrrrrrrrrrrrr}
+  \hline
+ & M & So & Ed & Po1 & Po2 & LF & M.F & Pop & NW & U1 & U2 & GDP & In
+eq & Prob & Time \\ 
+  \hline
+1 & 0.19 & 0.21 & 0.64 & 0.31 & 0.45 & -0.09 & 0.04 & 0.08 & -0.01 & 
+-0.03 & 0.15 & 0.10 & 0.77 & -0.26 & 0.06 \\ 
+   \hline
+\end{tabular}
+\end{table}
+
 Prediction Error:
 ```{r}
 pred_error = sum((yte - y_ols)^2) / length(yte)
@@ -442,61 +466,54 @@ pred_error
 ii. Now obtain the posterior mean $\hat{\boldsymbol{\beta}}_{\text{Bayes}}=E[\beta \mid \mathbf{y}_{\text{tr}}]$ using the g-prior described above and the training data only. Obtain predictions for the test set $\hat{\mathbf{y}}_{\text{Bayes}} = \mathbf{X}_{\text{test}}\hat{\boldsymbol{\beta}}_{\text{Bayes}}$. Plot versus the test data, compute the prediction error, and compare to the OLS prediction error. Explain the results.
 }
 
-```{r}
-library(ggplot2)
-y = ytr
-X = Xtr
+```{r fig.asp=1, fig.width=4}
+Beta_bayes = as.matrix(colMeans(beta_bayes(ytr,Xtr)))
+#Output Beta_bayes
+#xtable(t(Beta_bayes))
 
-n = dim(X)[1]
-p = dim(X)[2]
+y_bayes = Xte %*% Beta_bayes
 
-g = n
-nu0 = 2
-s20 = 1
-
-S = 1000
-
-Hg = (g / (g + 1)) * X %*% solve(t(X) %*% X) %*% t(X)
-SSRg = t(y) %*% (diag(1, nrow = n) - Hg) %*% y
-
-s2 = 1 / rgamma(S, (nu0 + n) / 2, (nu0 * s20 + SSRg) / 2)
-Vb = g * solve(t(X) %*% X) / (g + 1)
-Eb = Vb %*% t(X) %*% y
-
-E = matrix(rnorm(S * p, 0, sqrt(s2)), S, p)
-beta = t(t(E %*% chol(Vb)) + c(Eb))
-
-beta_bayes = as.matrix(colMeans(beta))
-
-y_bayes = Xte %*% beta_bayes
-
-bayes_df = data.frame(
-  observed = yte,
-  predicted = y_bayes
-)
-
-ggplot(bayes_df, aes(x = observed, y = predicted)) +
-  geom_point() +
-  geom_smooth(method = 'lm')
+plot(yte, y_bayes, xlab="y_te", ylab="y_bayes")
+abline(lm(y_bayes~yte))
+# line y=x
+ref_range<-seq(-1.6,3,by=0.1)
+lines(ref_range,ref_range,
+type="l", lty=2, lwd=2, col="GRAY")
 ```
 
+$\hat{\boldsymbol{\beta}}_{\text{Bayes}}$ is:
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{rrrrrrrrrrrrrrrr}
+  \hline
+ & M & So & Ed & Po1 & Po2 & LF & M.F & Pop & NW & U1 & U2 & GDP & In
+eq & Prob & Time \\ 
+  \hline
+1 & 0.18 & 0.22 & 0.61 & 0.23 & 0.48 & -0.09 & 0.04 & 0.09 & -0.02 & 
+-0.03 & 0.14 & 0.11 & 0.74 & -0.26 & 0.06 \\ 
+   \hline
+\end{tabular}
+\end{table}
 ```{r}
 pred_error = sum((yte - y_bayes)^2) / length(yte)
 pred_error
 ```
 
+Runing one single test, we cannot see significant difference between average prediction error of OLS (0.488) vs. Bayesian methods (0.491).
+
+## Part c
 
 \prob{
 c) Repeat the procedures in b) many times with different randomly generated test and training sets. Compute the average prediction error for both the OLS and Bayesian methods.
 }
 
 ```{r}
-library(dplyr)
 N = 100
 set.seed(1)
 pred_errors = t(sapply(1:N, function(i) {
   y = crime$y
-  X = crime %>% select(-y) %>% as.matrix
+  X <- as.matrix(subset(crime, select = -c(y)))
   train_i = sample.int(length(y), size = round(length(y) / 2), replace = FALSE)
   ytr = y[train_i]
   Xtr = X[train_i, ]
@@ -504,60 +521,40 @@ pred_errors = t(sapply(1:N, function(i) {
   Xte = X[-train_i, ]
   
   # OLS
-  beta_ols = solve(t(Xtr) %*% Xtr) %*% t(Xtr) %*% ytr
-  beta_ols
-  
-  y_ols = Xte %*% beta_ols
-  
+  Beta_ols = solve(t(Xtr) %*% Xtr) %*% t(Xtr) %*% ytr 
+  y_ols = Xte %*% Beta_ols
   pred_error_ols = sum((yte - y_ols)^2) / length(yte)
   
   # Bayes
   y = ytr
   X = Xtr
-  
-  n = dim(X)[1]
-  p = dim(X)[2]
-  
-  g = n
-  nu0 = 2
-  s20 = 1
-  
-  S = 1000
-  
-  Hg = (g / (g + 1)) * X %*% solve(t(X) %*% X) %*% t(X)
-  SSRg = t(y) %*% (diag(1, nrow = n) - Hg) %*% y
-  
-  s2 = 1 / rgamma(S, (nu0 + n) / 2, (nu0 * s20 + SSRg) / 2)
-  Vb = g * solve(t(X) %*% X) / (g + 1)
-  Eb = Vb %*% t(X) %*% y
-  
-  E = matrix(rnorm(S * p, 0, sqrt(s2)), S, p)
-  beta = t(t(E %*% chol(Vb)) + c(Eb))
-  
-  beta_bayes = as.matrix(colMeans(beta))
-  
-  y_bayes = Xte %*% beta_bayes
-  
+  Beta_bayes = as.matrix(colMeans(beta_bayes(ytr,Xtr)))
+  y_bayes = Xte %*% Beta_bayes
   pred_error_bayes = sum((yte - y_bayes)^2) / length(yte)
 
   c(pred_error_ols, pred_error_bayes)
-})) %>% as.data.frame
+})) 
 colnames(pred_errors) = c('ols', 'bayes')
 ```
 
-```{r}
-pred_diff = pred_errors %>% transmute(`bayes - ols` = bayes - ols)
-
-ggplot(pred_diff, aes(x = `bayes - ols`)) +
-  geom_density() +
-  geom_vline(xintercept = 0, lty = 2)
+```{r fig.height=4}
+plot(density(pred_errors[,2]), xlab="Avg Prediction Error", 
+     main="Avg Prediction Error of Bayesian (black) vs OLS (gray) methods")
+lines(density(pred_errors[,1]), col="gray")
 ```
 
+```{r}
+plot(density(pred_errors[,2]-pred_errors[,1]), xlab="Avg Prediction Error", 
+     main="Difference of Avg Prediction Error: Bayesian - OLS methods")
+abline(v=0, lty=2)
+```
+
+Bayesian method are more likely to have less prediction error then OLS method, especially when the prediction errors are large.
 
 # Problem 3: Exercise 10.5
 
 \prob{
-Logistic regression variable selection: Consider a logistic regression model for predicting diabetes as a function of $x_1$ = number of pregnancies, $x_2$ = blood pressure, $x_3$ = body mass index, $x_4$ = diabetes pedigree and $x_5$ = age. Using the data in azdiabetes.dat, center and scale each of the x-variables by subtracting the sample average and dividing by the sample standard deviation for each variable. Consider a logistic regression model of the form Pr$(Y_i = 1|\mathbf{x}_i, \boldsymbol{\beta},  \mathbf{z}) = e^{\theta_i}/(1 + e^{\theta_i})$ where
+Logistic regression variable selection: Consider a logistic regression model for predicting diabetes as a function of $x_1$ = number of pregnancies, $x_2$ = blood pressure, $x_3$ = body mass index, $x_4$ = diabetes pedigree and $x_5$ = age. Using the data in azdiabetes.dat, center and scale each of the x-variables by subtracting the sample average and dividing by the sample standard deviation for each variable. Consider a logistic regression model of the form Pr$(Y_i = 1|\mathbf{x}_i, \boldsymbol{\beta}, \boldsymbol{\gamma}) = e^{\theta_i}/(1 + e^{\theta_i})$ where
 
 
 \[
@@ -575,8 +572,149 @@ In this model, each $\gamma_j$ is either 0 or 1, indicating whether or not varia
 ## Part a
 
 \prob{
-a) Implement a Metropolis-Hastings algorithm for approximating the posterior distribution of $\beta$ and $\gamma$. Examine the sequences $\beta_j^{(s)}$ and $\beta_j^{(s)} \times \gamma_j^{(s)}$ for each j and discuss the mixing of the chain.
+a) Implement a Metropolis-Hastings algorithm for approximating the posterior distribution of $\boldsymbol{\beta}$ and $\boldsymbol{\gamma}$. Examine the sequences $\beta_j^{(s)}$ and $\beta_j^{(s)} \times \gamma_j^{(s)}$ for each j and discuss the mixing of the chain.
 }
+
+We iterativly go through step 1 to step 11 below to sample $\beta_0,\ldots,\beta_5, \gamma_1, \ldots, \gamma_5$ using Metropolis-Hastings algorithms:
+
+1. Update $\beta_0$:
+   a. Sample $\beta_0^* \sim N(\beta_0^{(s)}, 16)$
+   b. compute the log acceptance ratio\footnote{In many cases, computing the ratio $r$ directly can be numerically unstable, a problem that often can be remedied by computing the logarithm of $r$}\footnote{We are using symmeric proposal distribution, so the proposal distribution canceled out}
+   \[
+   log(r)=log\frac{p(\mathbf{Y}|\mathbf{X}, \beta_1^{(s)},\ldots,\beta_5^{(s)},\gamma_1^{(s)},\ldots,\gamma_5^{(s)}, \beta_0^*)}{p(\mathbf{Y}|\mathbf{X}, \beta_1^{(s)},\ldots,\beta_5^{(s)},\gamma_1^{(s)},\ldots,\gamma_5^{(s)}, \beta_0^{(s)})}
+   .\] 
+   c. set $\beta_0^{(s+1)}$ to $\beta_0^{*}$ or $\beta_0^{(s)}$ with probability min$(1,r)$ and max$(0,1-r)$.
+2. Update $\beta_1$:
+   a. Sample $\beta_1^* \sim N(\beta_1^{(s)}, 4)$
+   b. compute the log acceptance ratio
+   \[
+   log(r)=log\frac{p(\mathbf{Y}|\mathbf{X}, \beta_0^{(s+1)}, \beta_2^{(s)},\ldots,\beta_5^{(s)},\gamma_1^{(s)},\ldots,\gamma_5^{(s)}, \beta_1^*)}{p(\mathbf{Y}|\mathbf{X}, \beta_0^{(s+1)}, \beta_2^{(s)},\ldots,\beta_5^{(s)},\gamma_1^{(s)},\ldots,\gamma_5^{(s)}, \beta_1^{(s)})}
+   .\] 
+   c. set $\beta_1^{(s+1)}$ to $\beta_1^{*}$ or $\beta_1^{(s)}$ with probability min$(1,r)$ and max$(0,1-r)$.
+
+\ldots
+
+11. Update $\gamma_5$:
+   a. Sample $\gamma_5^* \sim B(n=1,p=0.5)$
+   b. compute the log acceptance ratio
+   \[
+   log(r)=log\frac{p(\mathbf{Y}|\mathbf{X}, \beta_0^{(s+1)}, \ldots,\beta_5^{(s+1)},\gamma_1^{(s+1)},\ldots,\gamma_4^{(s+1)}, \gamma_5^*)}{p(\mathbf{Y}|\mathbf{X}, \beta_0^{(s+1)}, \ldots,\beta_5^{(s+1)},\gamma_1^{(s+1)},\ldots,\gamma_4^{(s+1)}, \gamma_5^{(s)})}
+   .\] 
+   c. set $\gamma_5^{(s+1)}$ to $\gamma_5^{*}$ or $\gamma_5^{(s)}$ with probability min$(1,r)$ and max$(0,1-r)$.
+
+<!--
+I'm going to abuse the notation and by writing $\boldsymbol{\beta} = (\beta_1,\beta_2,\beta_3,\beta_4, \beta_5)^T$ since $beta_0$ has aand let the posterior distribution of $\beta_0, \boldsymbol{\beta}$ and $\boldsymbol{\gamma}$ be $p(\beta_0|\mathbf{X,Y},\boldsymbol{\beta},\gamma)$, $p(\boldsymbol{\beta}|\mathbf{X,Y},\beta_0,\gamma)$ and $p(\boldsymbol{\gamma}|\mathbf{X,Y}, \beta_0, \boldsymbol{\beta})$. We use Metropolis-Hastings algorithm to iterate through the following 3 steps and approach those three posterior distributions:
+
+1. Update $\beta_0$
+1. Update $\boldsymbol{\beta}$
+-->
+
+
+
+```{r eval=FALSE}
+azdiabetes <- read.table("azdiabetes.dat", header=TRUE)
+X <- scale(azdiabetes[, c("npreg", "bp", "bmi", "ped", "age")])
+n <- dim(X)[1]
+X <- cbind(rep(1,n),X)
+Y <- azdiabetes$diabetes == "Yes"
+
+sigmoid <- function(x){
+	return(1/(1+exp(-x)))
+}
+GAMMA<-BETA<-NULL
+delta=2
+BETA <- rbind(BETA, rep(0,6))
+GAMMA <- rbind(GAMMA, rep(0,5))
+delta <- c(4,2,2,2,2,2)
+S=100000
+ACCEPT.BETA.count <- rep(0,6)
+ACCEPT.GAMMA.count <- rep(0,5)
+set.seed(8964)
+for(i in 1:S){
+Beta_update<-BETA[i,]
+Gamma_update<-GAMMA[i,]
+
+# updating beta
+for(j in 1:6){
+  beta.p <- Beta_update
+  beta.p[j] <- rnorm(1, Beta_update[j], delta[j])
+    lr<-sum(dbinom(Y,size=1,
+		   prob=sigmoid(X%*%(beta.p*c(1,Gamma_update))),log=TRUE ) -
+	    dbinom(Y,size=1, 
+		   prob=sigmoid(X%*%(Beta_update*c(1,Gamma_update))),log=TRUE ) ) 
+    if( log(runif(1))<lr ) { 
+	    ACCEPT.BETA.count[j] <- ACCEPT.BETA.count[j]+1
+	    Beta_update<-beta.p }
+}# End update beta
+
+# update Gamma
+for(j in 1:5){
+  gamma.p <- Gamma_update
+  gamma.p[j] <- sample(0:1, size = 1)
+  lr<-sum(dbinom(Y,size=1, 
+		 prob=sigmoid(X%*%(Beta_update*c(1,gamma.p))),log=TRUE ) -
+	  dbinom(Y,size=1, 
+		 prob=sigmoid(X%*%(Beta_update*c(1,Gamma_update))),log=TRUE ) ) 
+    if( log(runif(1))<lr ) { 
+	    ACCEPT.GAMMA.count[j] <- ACCEPT.GAMMA.count[j]+1
+	    Gamma_update<-gamma.p}
+}# End update beta
+
+BETA <- rbind(BETA, Beta_update)
+GAMMA <- rbind(GAMMA, Gamma_update)
+print(i)
+print(Beta_update)
+print(Gamma_update)
+}
+```
+
+```{r eval=FALSE}
+save(BETA, file="BETA.10.5.RData")
+save(GAMMA, file="GAMMA.10.5.RData")
+save(ACCEPT.BETA.count, file="ACCEPT.BETA.10.5.count.RData")
+save(ACCEPT.GAMMA.count, file="ACCEPT.GAMMA.10.5.count.RData")
+```
+
+```{r}
+load("BETA.10.5.RData")
+load("GAMMA.10.5.RData")
+load("ACCEPT.BETA.10.5.count.RData")
+load("ACCEPT.GAMMA.10.5.count.RData")
+```
+
+```{r fig.height=3}
+stationarity.plot(BETA[,1],xlab="iteration",ylab=expression(beta[0]))
+stationarity.plot(BETA[,2],xlab="iteration",ylab=expression(beta[1]))
+stationarity.plot(BETA[,3],xlab="iteration",ylab=expression(beta[2]))
+stationarity.plot(BETA[,4],xlab="iteration",ylab=expression(beta[3]))
+stationarity.plot(BETA[,5],xlab="iteration",ylab=expression(beta[4]))
+stationarity.plot(BETA[,6],xlab="iteration",ylab=expression(beta[5]))
+```
+
+
+```{r}
+par(mfrow = c(2, 3), mar = c(3, 1, 3, 1))
+acf(BETA[,1],ci.col="gray",xlab="lag", main = 'ACF(BETA_0)')
+acf(BETA[,2],ci.col="gray",xlab="lag", main = 'ACF(BETA_1)')
+acf(BETA[,3],ci.col="gray",xlab="lag", main = 'ACF(BETA_2)')
+acf(BETA[,4],ci.col="gray",xlab="lag", main = 'ACF(BETA_3)')
+acf(BETA[,5],ci.col="gray",xlab="lag", main = 'ACF(BETA_4)')
+acf(BETA[,6],ci.col="gray",xlab="lag", main = 'ACF(BETA_5)')
+ACCEPT.BETA.count
+ACCEPT.GAMMA.count
+```
+
+The following graphs are stationarity plots for $\beta_j \times \gamma_j$
+
+```{r fig.height=3}
+stationarity.plot(BETA[,2]*GAMMA[,1],xlab="iteration",ylab=expression(beta[1]*gamma[1]))
+stationarity.plot(BETA[,3]*GAMMA[,2],xlab="iteration",ylab=expression(beta[2]*gamma[2]))
+stationarity.plot(BETA[,4]*GAMMA[,3],xlab="iteration",ylab=expression(beta[3]*gamma[3]))
+stationarity.plot(BETA[,5]*GAMMA[,4],xlab="iteration",ylab=expression(beta[4]*gamma[4]))
+stationarity.plot(BETA[,6]*GAMMA[,5],xlab="iteration",ylab=expression(beta[5]*gamma[5]))
+```
+
+The sampling results are not very satisfying, only $\beta_0$ seems fine to me. $\beta_1, \beta_2$ shows too high of accptance rate and also too high of autocorrelation. But given that $\beta_1\gamma_1$ and $\beta_2\gamma_2$ are stationarity at 0, we can accept that. However, for  $\beta_4\gamma_4$, it's not acheiving stationarity.
 
 ## Part b
 
@@ -584,11 +722,35 @@ a) Implement a Metropolis-Hastings algorithm for approximating the posterior dis
 b) Approximate the posterior probability of the top five most frequently occurring values of $\gamma$. How good do you think the MCMC estimates of these posterior probabilities are?
 }
 
+```{r}
+# Convert each row to a character string
+gamma_strings <- apply(GAMMA, 1, paste, collapse = "")
+# Count occurrences of each vector
+vector_counts <- table(gamma_strings)
+# Sort the counts in decreasing order and select the top 5 most frequent vectors
+sort(vector_counts, decreasing = TRUE)[1:5]
+```
+
+
 ## Part c
 
 \prob{
 c) For each $j$, plot posterior densities and obtain posterior means for $\beta_j\gamma_j$. Also obtain Pr$(\gamma_j = 1|\mathbf{x}, \mathbf{y})$.
 }
+
+```{r fig.width=3 }
+# Burn-in first 3000
+B<-1000
+dim(GAMMA)
+# thinning every 30 samples
+Gsave <- GAMMA[seq(B,dim(GAMMA)[1],by=30)]
+Bsave <- BETA[seq(B,dim(BETA)[1],by=30)]
+for (j in 1:5){
+plot(density(GAMMA[,j]*BETA[,j]),xlab="betaxgamma", main="density plot")
+}
+```
+
+
 
 # Problem 4: Exercise 11.4
 
@@ -659,14 +821,15 @@ par(mfrow = c(3, 4), mar = c(1, 1, 3, 1))
 # Create a county list to plot all counties
 counties_list <- unique(mathstandard$county)
 
-# plot for each county not using ggplot
+# plot for each county (not using ggplot)
 for (county in counties_list)
 {
 county_data = mathstandard[which(mathstandard$county==county),]
 model <- glm(county_data$metstandard ~ county_data$percentms, data = county_data, family=binomial)
 
 # Create a sequence of values for the predictor variable
-x_seq <- seq(min(county_data$percentms), max(county_data$percentms), length.out = 100)
+# x_seq <- seq(min(county_data$percentms), max(county_data$percentms), length.out = 100)
+x_seq <- seq(10, 100, length.out = 100)
 
 # Predict probabilities for each value in the sequence
 pred_prob <- 1/(1+exp(-model$coef[2]*x_seq-model$coef[1]))
@@ -696,11 +859,16 @@ We have 13 Warning messages when doing glm for each county:
 
 These warnings comes from 13 counties that has data points $\leq 3$
 
+Counties like Columbia and Garfield has only 1 data point so there is no model fit for that group.
+
+In counties like Spokane or Whitman, a few "abnormal" data point (high percentage of MS degrees but doesn't met standard) has too much leverage on the model fit that their model shows a opposite trend compared to the regression result for the entire state(which is shown in the next graph).
+
 ```{r}
 model <- glm(mathstandard$metstandard ~ mathstandard$percentms, data = mathstandard, family=binomial)
 
 # Create a sequence of values for the predictor variable
-x_seq <- seq(min(mathstandard$percentms), max(mathstandard$percentms), length.out = 100)
+# x_seq <- seq(min(mathstandard$percentms), max(mathstandard$percentms), length.out = 100)
+x_seq <- seq(10, 100, length.out = 100)
 
 # Predict probabilities for each value in the sequence
 pred_prob <- 1/(1+exp(-model$coef[2]*x_seq-model$coef[1]))
@@ -737,6 +905,7 @@ S0<-cov(BETA)
 \hat{\boldsymbol{\Sigma}} = \begin{bmatrix} 10.756 & -0.179\\-0.1799 & 0.003 \end{bmatrix} 
 \] 
 
+## Part c
 
 \prob{
 c) Formulate a unit information prior distribution for $\boldsymbol{ \theta }$ and $\Sigma$ based on the observed data. Specifically, let $\boldsymbol{ \theta } \sim \text{multivariate normal}(\hat{\boldsymbol{\theta}}, \hat{\Sigma})$ and let $\Sigma^{-1} \sim \text{Wishart}(4, \hat{\Sigma}^{-1})$. Use a Metropolis-Hastings algorithm to approximate the joint posterior distribution of all parameters.
@@ -761,7 +930,7 @@ The full conditional distribution of a covariance matrix is an inverse-Wishart d
 \begin{align*}
 \{\Sigma|\boldsymbol{\theta},\boldsymbol{\beta}_1, \ldots, \boldsymbol{\beta}_J\} &\sim \text{inverse-Wishart}(\eta_0+J, [\mathbf{S}_0+\mathbf{S}_\theta]^{-1})\text{, where}\\
 \mathbf{S}_\theta &= \sum_{j=1}^{J} (\boldsymbol{\beta}_j-\boldsymbol{\theta})(\boldsymbol{\beta}_j-\boldsymbol{\theta})^{T} \\
-.\end{align*}
+\end{align*}
 
 For sampling $\boldsymbol{\beta}$, we follow these steps: 
 
@@ -780,6 +949,7 @@ BETA <- NULL
 i<-1
 Y<-data.frame(nrow=J)
 X<-data.frame(nrow=J)
+County.name<-data.frame(nrow=J)
 for (county in counties_list){
 county_data = mathstandard[which(mathstandard$county==county),]
 if (nrow(county_data) <= 10){
@@ -791,6 +961,8 @@ if (nrow(county_data) <= 10){
 }
 Y[i] <- t(county_data$metstandard)
 X[i] <- t(county_data$percentms)
+# Save the county name label
+County.name[i] <- unique(county_data$county)
 i<-i+1
 }
 
@@ -802,6 +974,14 @@ return(Beta[1]+Beta[2]*X)
 }
 sigmoid <- function(x){
 	return(1/(1+exp(-x)))
+}
+# Alternative to dbinom, not working sadly...
+loglikelihood <- function(X, beta, yy){
+z<-XBeta(as.vector(t(X[j])),beta)
+return(ifelse(yy,
+  -log(1+exp(z)),
+  -z-log(1+exp(z)))
+)
 }
 ## mvnormal simulation
 rmvnorm<-function(n,mu,Sigma)
@@ -834,6 +1014,7 @@ ldmvnorm<-function(X,mu,Sigma,iSigma=solve(Sigma),dSigma=det(Sigma))
 ## MCMC
 ACCEPT.count <- rep(1,m)
 THETA.post<-SIGMA.post<-NULL ; set.seed(1)
+BETA.post <- list()
 for(s in 1:500000) 
 {
 
@@ -858,7 +1039,18 @@ for(s in 1:500000)
 #xx <- as.vector(t(X[1]))
 #sigmoid(XBeta(xx,BETA[1,]))
 #dbinom(yy, size=1, prob=sigmoid(XBeta(xx,BETA[1,])), log=TRUE)
+##alternative code, not workign
+#loglikelihood(xx, BETA[1], yy) 
 #dbinom(Y[j,],size=1, prob=exp(X%*%beta.p),log=TRUE )
+#
+#Or instead of using dbinom, we can use 
+#loglikelihood <- function(X, beta, yy){
+#z<-XBeta(as.vector(t(X[j])),beta)
+#return(ifelse(yy,
+#  -log(1+exp(z)),
+#  -z-log(1+exp(z))
+#)
+#}
 ########## Test dbinom ########
     lr<-sum( 
 	    dbinom(as.vector(t(Y[j])),size=1, 
@@ -881,6 +1073,7 @@ for(s in 1:500000)
     cat(s,"\n") 
     THETA.post<-rbind(THETA.post,t(theta)) 
     SIGMA.post<-rbind(SIGMA.post,c(Sigma)) 
+    BETA.post[[length(BETA.post)+1]]<-BETA
   }
 
 }
@@ -891,6 +1084,7 @@ save(THETA.post, file="THETA.post.RData")
 save(SIGMA.post, file="SIGMA.post.RData")
 save(ACCEPT.count, file="ACCEPT.count.RData")
 save(BETA, file="BETA.RData")
+save(BETA.post, file="BETA.post.RData")
 ```
 
 ```{r}
@@ -898,6 +1092,7 @@ load("THETA.post.RData")
 load("SIGMA.post.RData")
 load("ACCEPT.count.RData")
 load("BETA.RData")
+load("BETA.post.RData")
 ```
 
 ## Part d
@@ -916,7 +1111,7 @@ round(apply(SIGMA.post,2,effectiveSize),2)
 ```
 
 Assess the convergence of the Markov chain
-```{r}
+```{r fig.height=3}
 stationarity.plot(THETA.post[,1],xlab="iteration",ylab=expression(theta[0]))
 stationarity.plot(THETA.post[,2],xlab="iteration",ylab=expression(theta[1]))
 stationarity.plot(SIGMA.post[,1],xlab="iteration",ylab=expression(sigma[theta[0]]))
@@ -925,11 +1120,12 @@ stationarity.plot(SIGMA.post[,4],xlab="iteration",ylab=expression(sigma[theta[1]
 ```
 
 ```{r}
-acf(THETA.post[,1],ci.col="gray",xlab="lag", main = 'autocorrelation function (THETA_0)')
-acf(THETA.post[,2],ci.col="gray",xlab="lag", main = 'autocorrelation function (THETA_1)')
-acf(SIGMA.post[,1],ci.col="gray",xlab="lag", main = 'autocorrelation function (SIGMA_THETA_0^2)')
-acf(SIGMA.post[,2],ci.col="gray",xlab="lag", main = 'autocorrelation function (SIGMA_THETA_0_THETA_1)')
-acf(SIGMA.post[,4],ci.col="gray",xlab="lag", main = 'autocorrelation function (SIGMA_THETA_1^2)')
+par(mfrow = c(2, 3), mar = c(3, 1, 3, 1))
+acf(THETA.post[,1],ci.col="gray",xlab="lag", main = 'ACF(THETA_0)')
+acf(THETA.post[,2],ci.col="gray",xlab="lag", main = 'ACF(THETA_1)')
+acf(SIGMA.post[,1],ci.col="gray",xlab="lag", main = 'ACF(SIGMA_THETA_0^2)')
+acf(SIGMA.post[,2],ci.col="gray",xlab="lag", main = 'ACF(SIGMA_THETA_0_THETA_1)')
+acf(SIGMA.post[,4],ci.col="gray",xlab="lag", main = 'ACF(SIGMA_THETA_1^2)')
 ```
 
 
@@ -937,8 +1133,8 @@ Assess the acceptance rate of Metropolis-Hastings Algorithm:
 
 The acceptance rate when sampling $\boldsymbol{\beta}_j$ is plotted in this figure. The two dashed lines here are $r_1 = 0.3$ and $r_2 = 0.7$, we can see from this graph that our acceptance rate is a little bit high, but still acceptable.
 
-```{r}
-plot(ACCEPT.count/500000, ylim=c(0,1))
+```{r fig.height=3}
+plot(ACCEPT.count/500000, ylim=c(0,1) , ylab="Acceptannce rate")
 abline(h=0.3,lty=2,lwd=2)
 abline(h=0.7,lty=2,lwd=2)
 ```
@@ -950,8 +1146,31 @@ e) Obtain posterior expectations of $\boldsymbol{\beta}_j$ for each group $j$, p
 }
 
 ```{r}
+# Traverse every county
+j<-1
+# Store the posterior expectations of beta
+BETA_mean <- NULL
+for (county in counties_list){
+county_data = mathstandard[which(mathstandard$county==county),]
+
+BETAj <- lapply(BETA.post, function(BETA) BETA[j, ])
+# extract all posterior BETA_0 generated for county j
+BETAj_0 <- unlist(lapply(BETAj, function(coeff) coeff[1]))
+# extract all posterior BETA_1 generated for county j
+BETAj_1 <- unlist(lapply(BETAj, function(coeff) coeff[2]))
+BETA_mean <- rbind(BETA_mean,c(mean(BETAj_0),mean(BETAj_1)))
+
+par(mfrow = c(3, 4), mar = c(1, 1, 3, 1))
+x_seq <- seq(10, 100, length.out = 100)
+pred_prob <- 1/(1+exp(-BETA_mean[j,2]*x_seq-BETA_mean[j,1]))
+plot(x_seq, pred_prob, type = "l", ylim = c(0, 1), xlab = "", ylab = "")
+points(county_data$percentms, county_data$metstandard)
+title(county)
+j<-j+1
+}
 ```
 
+First of all, now all 39 counties has their models (as shown in above graphs). Secondly, we can see that even for counties like Whitman with some abnormal data points, we can still see a moderately increasing trend instead of an abrupt drop as shown in part b. This is because the hierarchical model for each county can borrow information from the whole population (data from entire Washington state). Furthermore, comparing counties of Whitman and Yakima, we can also see that our groupwise model reflects information collected from local (in each group) also. In this case, most schools in Whitman county met the standards whereas most schools in Yakima don't met the standard, so our model always predict a higher probability (regardless of their MS degree teacher proportions) for schools in Whitman to met the standard than that in Yakima.
 
 
 ## Part f
@@ -959,3 +1178,54 @@ e) Obtain posterior expectations of $\boldsymbol{\beta}_j$ for each group $j$, p
 \prob{
 f) From your posterior samples, plot marginal posterior and prior densities of $\boldsymbol{\theta}$ and the elements of $\Sigma$. Include your ad hoc estimates from b) in the plots. Discuss the evidence that the slopes or intercepts vary across groups.
 }
+
+```{r}
+plot(density(THETA.post[,1]),xlim=c(-10,5), main="Posterior density of theta_0", 
+     xlab=expression(theta[0]))
+x_theta <- seq(-10, 5, length.out=100)
+lines(x_theta, dnorm(x_theta, mean=mu0[1], sd=sqrt(S0[1])), lty=2, col="GRAY", lwd=2)
+abline(v=mu0[1], lty=2, col="GRAY", lwd=2)
+```
+
+```{r fig.height=4}
+plot(density(THETA.post[,2]),xlim=c(-0.1,0.2), main="Posterior density of theta_1", 
+     xlab=expression(theta[1]))
+x_theta <- seq(-0.1, 0.2, length.out=100)
+lines(x_theta, dnorm(x_theta, mean=mu0[2], sd=sqrt(S0[4])), lty=2, col="GRAY", lwd=2)
+abline(v=mu0[2], lty=2, col="GRAY", lwd=2)
+```
+
+```{r}
+rwish<-function(n,nu0,S0)
+{
+  sS0 <- chol(S0)
+  S<-array( dim=c( dim(S0),n ) )
+  for(i in 1:n)
+  {
+     Z <- matrix(rnorm(nu0 * dim(S0)[1]), nu0, dim(S0)[1]) %*% sS0
+     S[,,i]<- t(Z)%*%Z
+  }
+  S[,,1:n]
+}
+S0_prior <- rwish(n=1000, nu0=4, S0)
+plot(density(SIGMA.post[,1]), main="Posterior density of Sigma_theta_1", 
+     xlab=expression(Sigma[theta[1]]))
+lines(density(S0_prior[1,1,]))
+abline(v=S0[1], lty=2, col="GRAY", lwd=2)
+```
+
+```{r}
+plot(density(SIGMA.post[,2]), main="Posterior density of Sigma_theta_1,theta_2", 
+     xlab=expression(Sigma[theta[12]]))
+lines(density(S0_prior[1,2,]))
+abline(v=S0[2], lty=2, col="GRAY", lwd=2)
+```
+
+```{r}
+plot(density(SIGMA.post[,4]), main="Posterior density of Sigma_theta_2", 
+     xlab=expression(Sigma[theta[2]]))
+lines(density(S0_prior[2,2,]))
+abline(v=S0[4], lty=2, col="GRAY", lwd=2)
+```
+
+The slope doesn't have much variance across groups, but the intercept varies more across groups. From these result we can infer that there are more unexplored factors (or inherent properties, such as socioeconomical status) in different counties other than the "percentms" that can explain the "metstandard" variable.
